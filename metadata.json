@@ -1,0 +1,5 @@
+{
+  "name": "Truth Stack",
+  "description": "A powerful analysis tool that layers evidence, skepticism, and logic to verify claims using Gemini and Google Search.",
+  "requestFramePermissions": []
+}

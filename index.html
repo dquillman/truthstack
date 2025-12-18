@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- SEO & Social Sharing -->
+  <title>Truth Stack | AI Fact-Checking Engine</title>
+  content="Enter any claim, rumor, or question. Truth Stack decomposes it into evidence, skepticism, and a final verdict
+  using Gemini AI & Google Search.">
+
+  <!-- PWA & Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=4">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <meta name="theme-color" content="#0f172a">
+
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Trusted Types Policy for strict environments -->
+  <script>
+    if (window.trustedTypes && window.trustedTypes.createPolicy) {
+      if (!window.trustedTypes.defaultPolicy) {
+        try {
+          window.trustedTypes.createPolicy('default', {
+            createHTML: (string) => string,
+            createScript: (string) => string,
+            createScriptURL: (string) => string,
+          });
+        } catch (e) {
+          console.warn('TrustedTypes policy creation failed:', e);
+        }
+      }
+    }
+  </script>
+
+
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a;
+      /* Slate 900 fallback */
+      color: #f1f5f9;
+    }
+
+    /* Custom Scrollbar for Dark Mode */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+  </style>
+
+
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body>
+  <div id="root"></div>
+
+
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>

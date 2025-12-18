@@ -1,0 +1,17 @@
+{
+    "name": "TruthStack",
+    "short_name": "TruthStack",
+    "description": "AI-Powered Fact Checking Engine",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#0f172a",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}
