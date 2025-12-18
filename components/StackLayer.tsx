@@ -87,7 +87,7 @@ export const StackLayer: React.FC<StackLayerProps> = ({ data, index, total, orig
 
   return (
     <div
-      className="relative flex gap-6 w-full max-w-3xl mx-auto"
+      className="relative flex gap-6 w-full max-w-2xl mx-auto"
       style={animStyle}
     >
       {/* Timeline spine (Hidden on very small screens, shown on sm+) */}
@@ -101,7 +101,7 @@ export const StackLayer: React.FC<StackLayerProps> = ({ data, index, total, orig
       </div>
 
       {/* Content Card */}
-      <div className={`flex-1 mb-8 rounded-xl border p-6 shadow-lg relative group ${style.bg} ${style.border}`}>
+      <div className={`flex-1 mb-8 rounded-xl border p-4 md:p-6 shadow-lg relative group ${style.bg} ${style.border}`}>
         <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
           <div className="flex items-center gap-2">
             <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded text-white ${style.accent}`}>

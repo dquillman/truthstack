@@ -75,8 +75,14 @@ const AdminApp: React.FC = () => {
     // Fallback if no data
     const maxVal = Math.max(...categories.map(c => c.value), 1);
 
+    // Helper to normalize verdict strings (remove trailing periods, trim)
+    const normalizeVerdict = (v: string | undefined) => {
+        if (!v) return 'Unknown';
+        return v.trim().replace(/\.$/, ''); // Remove trailing period
+    };
+
     const verdictStats: Record<string, number> = data.reduce((acc: any, curr) => {
-        const v = curr.verdict || 'Unknown';
+        const v = normalizeVerdict(curr.verdict);
         acc[v] = (acc[v] || 0) + 1;
         return acc;
     }, {});
@@ -86,11 +92,14 @@ const AdminApp: React.FC = () => {
     const maxVerdict = Math.max(...verdicts.map(v => v.value), 1);
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-100 p-8">
+        <div className="min-h-screen bg-slate-900 text-slate-100 p-4 md:p-8">
             <header className="flex justify-between items-center mb-10 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold flex items-center gap-2">
-                    <LayoutDashboard className="text-blue-500" /> Admin Dashboard
-                </h1>
+                <div className="flex items-center gap-4">
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <LayoutDashboard className="text-blue-500" /> Admin Dashboard
+                    </h1>
+                    <span className="text-xs font-mono text-slate-500 border border-slate-700/50 px-1.5 py-0.5 rounded opacity-60">v{__APP_VERSION__}</span>
+                </div>
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-slate-400">{user.email}</span>
                     <button onClick={() => auth.signOut()} className="text-slate-400 hover:text-white"><LogOut size={20} /></button>
@@ -172,7 +181,7 @@ const AdminApp: React.FC = () => {
                                                 row.verdict?.toUpperCase().includes('FALSE') ? 'bg-red-500/20 text-red-300' :
                                                     'bg-amber-500/20 text-amber-300'
                                                 }`}>
-                                                {row.verdict}
+                                                {normalizeVerdict(row.verdict)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-slate-500">

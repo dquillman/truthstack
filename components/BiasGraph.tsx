@@ -38,7 +38,7 @@ export const BiasGraph: React.FC<BiasGraphProps> = ({ data }) => {
   const gridLevels = [25, 50, 75, 100];
 
   return (
-    <div className="w-full flex flex-col items-center justify-center bg-slate-900/50 rounded-xl border border-slate-700 p-6 mt-6 relative overflow-hidden group">
+    <div className="w-full flex flex-col items-center justify-center bg-slate-900/50 rounded-xl border border-slate-700 p-3 md:p-6 mt-6 relative overflow-hidden group">
       <div className="absolute inset-0 bg-indigo-500/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
 
       <h4 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2 z-10">
@@ -46,8 +46,8 @@ export const BiasGraph: React.FC<BiasGraphProps> = ({ data }) => {
         Source Bias Radar
       </h4>
 
-      <div className="relative z-10" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <div className="relative z-10 w-full max-w-[300px] aspect-square">
+        <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
           {/* Background Grid */}
           {gridLevels.map((level, i) => {
             const levelPoints = axes.map(axis => {

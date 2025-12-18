@@ -250,7 +250,7 @@ const Home: React.FC = () => {
               </button>
             </form>
 
-            <div className="mt-8 flex gap-6 text-sm text-slate-400">
+            <div className="mt-8 flex flex-wrap justify-center gap-4 md:gap-6 text-sm text-slate-400">
               <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span> Gemini 2.5 Flash</span>
               <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span> Google Search</span>
               <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-amber-400 rounded-full"></span> Real-time Analysis</span>
