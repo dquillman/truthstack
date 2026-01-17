@@ -8,6 +8,8 @@ export enum LayerType {
   INVESTIGATION = 'investigation',
   VERDICT = 'verdict',
   REASONING = 'reasoning',
+  BIAS = 'bias',
+  CITATIONS = 'citations'
 }
 
 export interface BiasData {
@@ -15,6 +17,7 @@ export interface BiasData {
   scientificDeviation: number;
   emotionalCharge: number;
   commercialInterest: number;
+  framingNotes?: string;
 }
 
 
@@ -37,4 +40,7 @@ export interface AnalysisResult {
   layers: StackLayerData[];
   sources: Source[];
   suggestedQuestions?: string[];
+  confidenceScore?: number;
+  keyReasons?: string[];
+  whatWouldChange?: string;
 }

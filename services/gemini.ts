@@ -9,75 +9,81 @@ export const analyzeClaim = async (claim: string, imageBase64?: string): Promise
   const vertexAI = getVertexAI(app);
 
   const prompt = `
-    You are TruthStack, an analysis engine.
+    You are TruthStack, an expert fact-checker and analysis engine.
     Analyze the claim: "${claim}".
     
     **INSTRUCTIONS**:
-    1. Analyze the claim (and image if provided) using your internal knowledge base.
-    2. Identify logical fallacies or lack of evidence.
-    3. Format your response using **STRICT XML TAGS**.
+    1. Analyze the claim (and image if provided) using your internal knowledge base and provided sources.
+    2. Identify logical fallacies, assumptions, and lack of evidence.
+    3. Determine a verdict: TRUE, FALSE, MISLEADING, or UNVERIFIED.
+    4. If there is NO specific evidence or NO sources provided, the verdict MUST be "UNVERIFIED" with a confidence score <= 0.35.
+    5. Factual statements must include [Source #] or be explicitly labeled as "(inference)".
+    6. Format your response using **STRICT XML TAGS**.
     
     **OUTPUT FORMAT**:
     
+    <normalized_claim>
+    A concisely restated version of the user's claim for clarity.
+    </normalized_claim>
+
+    <assumptions>
+    List 2-3 underlying assumptions required for this claim to be true.
+    </assumptions>
+
     <investigation>
     Use RICH MARKDOWN here.
     - Start with a header "### 🔍 The Deep Dive"
+    - Break down the evidence.
     - Use bullet points for key facts.
-    - Use **bold** for emphasis.
-    - If there is numerical data, YOU MUST CREATE A MARKDOWN TABLE.
-    - Structure it into clear subsections.
-    - Do NOT include the final verdict here.
-    - Do NOT include the final verdict here.
+    - Ensure citations like [Source 1] are used for every factual claim.
+    - If no sources are found/provided, explain why it's unverified.
     </investigation>
     
-    <reasoning>
-    Identify 3-5 KEY FACTORS that determined your verdict. Why is it True/False?
-    Format:
-    <point>Factor 1: Brief explanation</point>
-    <point>Factor 2: Brief explanation</point>
-    </reasoning>
-    
+    <key_reasons>
+    - Bullet 1
+    - Bullet 2
+    - Bullet 3
+    </key_reasons>
+
     <verdict>
-    [Level 3 Content: ONE word status (TRUE/FALSE/MISLEADING) followed by 2-3 short summary sentences.]
+    STATUS: [TRUE/FALSE/MISLEADING/UNVERIFIED]
+    CONFIDENCE: [0.0 to 1.0]
+    SUMMARY: [2-3 short summary sentences.]
     </verdict>
 
+    <change_verdict>
+    What specific new evidence or discovery would change this verdict?
+    </change_verdict>
+
     <questions>
-    Generate 3 short, intriguing follow-up questions a user might ask next.
-    Format:
+    Generate 3 short, intriguing follow-up questions.
     <q>Question 1?</q>
     <q>Question 2?</q>
     <q>Question 3?</q>
+    </questions>
 
     <bias>
-    Provide a JSON object (0-100 scale) for the claim's source/nature.
+    JSON object (0-100 scale) + framing notes.
     {
-      "politicalScore": 50,      // 0=Neutral, 100=Extreme
-      "scientificDeviation": 0,  // 0=Aligned with Consensus, 100=Pseudoscience
-      "emotionalCharge": 20,     // 0=Calm, 100=Hysterical
-      "commercialInterest": 10   // 0=None, 100=Clear Sales Motive
+      "politicalScore": 50,
+      "scientificDeviation": 0,
+      "emotionalCharge": 20,
+      "commercialInterest": 10,
+      "framingNotes": "Brief notes on how the claim is framed..."
     }
     </bias>
 
-    <category>
-    Classify into ONE: Politics, Health, Technology, Science, Culture, Economics, History, Other.
-    </category>
-
-
     <sources>
-    List 3-5 credible sources (or domains) that would support this analysis.
-    Format:
-    <s url="https://example.com">Source Title</s>
-    <s url="">Organization/Domain Name</s>
+    List 3-5 credible sources.
+    <s url="URL">Source Title</s>
     </sources>
   `;
 
-  // Fallback list for Vertex AI models (handling deprecation/retirement)
-  // Current Date: Dec 2025 (Gemini 1.5 Flash retired Sept 2025)
   const modelsToTry = [
-    "gemini-2.0-flash",        // Likely standard
-    "gemini-1.5-flash-002",    // Newer 1.5 version
-    "gemini-1.5-pro-002",      // Newer 1.5 Pro
-    "gemini-2.0-flash-exp",    // Fallback exp
+    "gemini-2.0-flash",
+    "gemini-1.5-flash-002",
+    "gemini-1.5-pro-002",
+    "gemini-2.0-flash-exp",
   ];
 
   let lastError: any = null;
@@ -85,17 +91,15 @@ export const analyzeClaim = async (claim: string, imageBase64?: string): Promise
   for (const modelName of modelsToTry) {
     try {
       console.log(`Attempting Vertex AI model: ${modelName}`);
-      console.log(`Attempting Vertex AI model: ${modelName}`);
       const model = getGenerativeModel(vertexAI, { model: modelName });
 
       let parts: any[] = [{ text: prompt }];
 
       if (imageBase64) {
-        // Extract base64 data if it has the prefix
         const base64Data = imageBase64.split(',')[1] || imageBase64;
         parts.push({
           inlineData: {
-            mimeType: 'image/png', // Simplified assumption, logic handles png/jpeg typcially
+            mimeType: 'image/png',
             data: base64Data
           }
         });
@@ -107,35 +111,42 @@ export const analyzeClaim = async (claim: string, imageBase64?: string): Promise
       const response = result.response;
       let text = response.text();
 
-      // Clean up code blocks if the model wrapped the XML
+      // Clean up code blocks
       text = text.replace(/```xml/g, '').replace(/```/g, '');
 
-      // 1. Parse XML Sections using Regex
-      const investigationMatch = text.match(/<investigation>([\s\S]*?)<\/investigation>/i);
-      const reasoningMatch = text.match(/<reasoning>([\s\S]*?)<\/reasoning>/i);
-      const verdictMatch = text.match(/<verdict>([\s\S]*?)<\/verdict>/i);
+      // Parse Sections
+      const normalizedClaim = text.match(/<normalized_claim>([\s\S]*?)<\/normalized_claim>/i)?.[1].trim() || claim;
+      const assumptions = text.match(/<assumptions>([\s\S]*?)<\/assumptions>/i)?.[1].trim() || "";
+      const investigationContent = text.match(/<investigation>([\s\S]*?)<\/investigation>/i)?.[1].trim() || "Analysis pending...";
+      const keyReasonsText = text.match(/<key_reasons>([\s\S]*?)<\/key_reasons>/i)?.[1].trim() || "";
+      const keyReasons = keyReasonsText.split('\n').map(s => s.replace(/^- /, '').trim()).filter(Boolean);
+      const verdictNode = text.match(/<verdict>([\s\S]*?)<\/verdict>/i)?.[1].trim() || "";
+      const whatWouldChange = text.match(/<change_verdict>([\s\S]*?)<\/change_verdict>/i)?.[1].trim() || "";
+
+      // Parse Verdict Details
+      const status = verdictNode.match(/STATUS:\s*(TRUE|FALSE|MISLEADING|UNVERIFIED)/i)?.[1] || "UNVERIFIED";
+      const confidence = parseFloat(verdictNode.match(/CONFIDENCE:\s*([\d.]+)/i)?.[1] || "0");
+      const summary = verdictNode.match(/SUMMARY:\s*([\s\S]+)/i)?.[1].trim() || "";
 
       // Parse Questions
-      const questionsMatch = text.match(/<questions>([\s\S]*?)<\/questions>/i);
       const suggestedQuestions: string[] = [];
+      const questionsMatch = text.match(/<questions>([\s\S]*?)<\/questions>/i);
       if (questionsMatch) {
-        const qContent = questionsMatch[1];
         const qRegex = /<q>(.*?)<\/q>/g;
         let match;
-        while ((match = qRegex.exec(qContent)) !== null) {
+        while ((match = qRegex.exec(questionsMatch[1])) !== null) {
           suggestedQuestions.push(match[1].trim());
         }
       }
 
       // Parse Sources
-      const sourcesMatch = text.match(/<sources>([\s\S]*?)<\/sources>/i);
       const sources: any[] = [];
+      const sourcesMatch = text.match(/<sources>([\s\S]*?)<\/sources>/i);
       if (sourcesMatch) {
-        const sContent = sourcesMatch[1];
         const sRegex = /<s url="(.*?)">(.*?)<\/s>/g;
         let match;
-        while ((match = sRegex.exec(sContent)) !== null) {
-          sources.push({ uri: match[1], title: match[2], reliability: 'high' });
+        while ((match = sRegex.exec(sourcesMatch[1])) !== null) {
+          sources.push({ uri: match[1], title: match[2] });
         }
       }
 
@@ -145,38 +156,29 @@ export const analyzeClaim = async (claim: string, imageBase64?: string): Promise
       if (biasMatch) {
         try {
           biasData = JSON.parse(biasMatch[1].trim());
-        } catch (e) {
-          console.warn("Failed to parse bias JSON", e);
-        }
+        } catch (e) { console.warn("Bias parse error", e); }
       }
 
-      let investigationContent = investigationMatch ? investigationMatch[1].trim() : "Analysis pending...";
-      let reasoningContent = reasoningMatch ? reasoningMatch[1].trim() : "Reasoning pending...";
-      let verdictContent = verdictMatch ? verdictMatch[1].trim() : "Verdict pending...";
-
-      console.log('[Gemini] Parsed Output Sections:', {
-        hasInvestigation: !!investigationMatch,
-        hasReasoning: !!reasoningMatch,
-        hasVerdict: !!verdictMatch,
-        reasoningSnippet: reasoningContent.substring(0, 50)
-      });
-      // LOG THE RAW TEXT IF MISSING
-      if (!reasoningMatch) {
-        console.warn('MISSING REASONING SECTION in raw text:', text.substring(0, 500) + '...');
+      // Guardrail: Force UNVERIFIED if no sources
+      let finalStatus = status;
+      let finalConfidence = confidence;
+      if (sources.length === 0) {
+        finalStatus = "UNVERIFIED";
+        finalConfidence = Math.min(confidence, 0.35);
       }
 
       const layers: StackLayerData[] = [
         {
           id: 'layer-claim',
           type: LayerType.CLAIM,
-          title: 'The Claim',
-          content: claim,
+          title: 'Layer 1: The Claim',
+          content: `**Normalized Claim:** ${normalizedClaim}\n\n**Assumptions:**\n${assumptions}`,
           isLoading: false
         },
         {
           id: 'layer-investigation',
           type: LayerType.INVESTIGATION,
-          title: 'The Investigation',
+          title: 'Layer 2: Investigation',
           content: investigationContent,
           biasData: biasData,
           isLoading: false
@@ -184,45 +186,28 @@ export const analyzeClaim = async (claim: string, imageBase64?: string): Promise
         {
           id: 'layer-verdict',
           type: LayerType.VERDICT,
-          title: 'The Verdict',
-          content: verdictContent,
-          isLoading: false
-        },
-        {
-          id: 'layer-reasoning',
-          type: LayerType.REASONING,
-          title: 'The Why',
-          content: reasoningContent,
+          title: 'Layer 3: Verdict',
+          content: `**${finalStatus}**\n\n${summary}`,
           isLoading: false
         }
       ];
 
-      // Parse Category
-      const categoryMatch = text.match(/<category>([\s\S]*?)<\/category>/i);
-      const category = categoryMatch ? categoryMatch[1].trim() : "Other";
-
-      // Save to History (Fire-and-forget)
-      saveAnalysis({
-        claim,
-        verdict: verdictContent.split(' ')[0] || "Unknown", // First word usually TRUE/FALSE
-        category,
-        sourceCount: sources.length,
-        hasImage: !!imageBase64,
-        model: modelName
-      });
-
-      return { layers, sources: sources, suggestedQuestions };
+      return {
+        layers,
+        sources,
+        suggestedQuestions,
+        confidenceScore: finalConfidence,
+        keyReasons,
+        whatWouldChange
+      };
 
     } catch (error: any) {
-      console.warn(`Vertex AI Model ${modelName} failed:`, error);
+      console.warn(`Model ${modelName} failed:`, error);
       lastError = error;
-      // Continue to next model
     }
   }
 
-  // If we reach here, all models failed
-  console.error("All Vertex AI models failed.");
-  throw new Error(`Vertex AI analysis failed: ${lastError?.message || JSON.stringify(lastError)}`);
+  throw new Error(`Analysis failed: ${lastError?.message || "Unknown error"}`);
 };
 
 export const startDebate = async (claim: string): Promise<any[]> => {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { db, auth } from '../../firebase';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 import { LayoutDashboard, LogOut } from 'lucide-react';
 
@@ -15,13 +15,22 @@ interface AnalysisRecord {
 
 const AdminApp: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
+    const [isAdmin, setIsAdmin] = useState<boolean | null>(null); // null = checking
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<AnalysisRecord[]>([]);
+    const [sessions, setSessions] = useState<any[]>([]);
 
     // Auth State
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (u) => {
+        const unsubscribe = onAuthStateChanged(auth, async (u) => {
             setUser(u);
+            if (u) {
+                // Fetch user document to check role
+                const snap = await getDoc(doc(db, 'users', u.uid));
+                setIsAdmin(snap.exists() && snap.data()?.role === 'admin');
+            } else {
+                setIsAdmin(false);
+            }
             setLoading(false);
         });
         return () => unsubscribe();
@@ -29,12 +38,15 @@ const AdminApp: React.FC = () => {
 
     // Fetch Data
     useEffect(() => {
-        if (user) {
+        if (user && isAdmin) {
             const fetchData = async () => {
-                const q = query(collection(db, 'analyses'), orderBy('timestamp', 'desc'), limit(100));
-                const snapshot = await getDocs(q);
-                const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AnalysisRecord));
-                setData(docs);
+                const qA = query(collection(db, 'analyses'), orderBy('timestamp', 'desc'), limit(100));
+                const snapA = await getDocs(qA);
+                setData(snapA.docs.map(doc => ({ id: doc.id, ...doc.data() } as AnalysisRecord)));
+
+                const qS = query(collection(db, 'user_sessions'), orderBy('lastSeenAt', 'desc'), limit(50));
+                const snapS = await getDocs(qS);
+                setSessions(snapS.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             };
             fetchData();
         }
@@ -151,6 +163,60 @@ const AdminApp: React.FC = () => {
                             })}
                             {verdicts.length === 0 && <div className="text-slate-500 italic">No data yet</div>}
                         </div>
+                    </div>
+                </div>
+
+                {/* Active Sessions Section */}
+                <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                    <div className="p-6 border-b border-slate-700 flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-slate-300">Active Sessions</h3>
+                        <span className="text-xs text-slate-500">{sessions.length} records</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-900/50 text-slate-400">
+                                <tr>
+                                    <th className="px-6 py-4 font-medium">User</th>
+                                    <th className="px-6 py-4 font-medium">Status</th>
+                                    <th className="px-6 py-4 font-medium">Last Seen</th>
+                                    <th className="px-6 py-4 font-medium">Device</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700/50">
+                                {sessions.map((s) => {
+                                    const lastSeen = s.lastSeenAt?.seconds ? s.lastSeenAt.seconds * 1000 : Date.now();
+                                    const isLive = (Date.now() - lastSeen) < (5 * 60 * 1000) && s.status === 'active';
+
+                                    return (
+                                        <tr key={s.id} className="hover:bg-slate-800/30">
+                                            <td className="px-6 py-4">
+                                                <div className="font-medium text-white">{s.email || 'Anonymous'}</div>
+                                                <div className="text-[10px] text-slate-500 font-mono">{s.uid}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}></span>
+                                                    <span className={`text-xs ${isLive ? 'text-emerald-400 font-bold' : 'text-slate-500'}`}>
+                                                        {isLive ? 'LIVE' : s.status?.toUpperCase() || 'INACTIVE'}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                {new Date(lastSeen).toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-500 truncate max-w-[200px]" title={s.userAgent}>
+                                                {s.userAgent?.split(') ')[0]?.split(' (')[1] || 'Unknown Browser'}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                {sessions.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-8 text-center text-slate-500">No session history found.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
